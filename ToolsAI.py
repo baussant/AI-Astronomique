@@ -67,3 +67,48 @@ def sampling(sampling_strategy,Y,encoder,sampling_number):
         sampling_number = 'N/A'
         sampling_strategy2 = 'auto'  
     return sampling_strategy2,sampling_number   
+
+def Calcul_XX_YY(data,Y_Target,X_Chara):
+    
+    XR = data.copy()
+
+    XR.columns = XR.columns.str.strip()
+
+    # Vérification des colonnes spécifiées
+    if Y_Target not in XR.columns:
+        raise ValueError(f"La colonne spécifiée pour Y_Target ('{Y_Target}') est absente des données.")
+    
+      # Encodage de la colonne cible si classification
+    encoder = LabelEncoder()
+    XR[Y_Target] = encoder.fit_transform(XR[Y_Target].str.strip())
+    print(f"Classes encodées : {list(encoder.classes_)}")
+
+    XX = XR.drop(columns=[Y_Target])
+    XX = XX.select_dtypes(include=['number']).dropna(axis=1)  # Suppression des colonnes non numériques
+    XX = XX[X_Chara]
+
+    YY = XR[[Y_Target]].dropna()
+
+    return XX,YY,encoder
+
+def Calcul_XX_YY_2(data,Y_Target,X_Chara):
+    
+    XR = data.copy()
+
+    XR.columns = XR.columns.str.strip()
+
+    # Vérification des colonnes spécifiées
+    if Y_Target not in XR.columns:
+        raise ValueError(f"La colonne spécifiée pour Y_Target ('{Y_Target}') est absente des données.")
+
+    # Encodage de la colonne cible pour la classification
+    encoder = LabelEncoder()
+    XR[Y_Target] = encoder.fit_transform(XR[Y_Target].str.strip())
+    print(f"Classes encodées : {list(encoder.classes_)}")
+
+    # Séparation des caractéristiques et de la cible
+    XX = XR[X_Chara].dropna()  # Assurez-vous que seules les colonnes numériques sélectionnées sont utilisées
+    YY = XR.loc[XX.index, Y_Target]  # Garder les mêmes indices pour Y
+
+    return XX, YY, encoder
+

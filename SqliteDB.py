@@ -28,8 +28,8 @@ def create_rf_data_table(connection: sqlite3.Connection):
     create_table_query ="""CREATE TABLE IF NOT EXISTS RF_data (
         Smote BOOLEAN,
         CV INTEGER,
-        Variance REAL,
-        Solver TEXT,
+        Sampling_Strategy BOOLEAN,
+        Sampling_Number TEXT,
         Max_depth INTEGER,
         Max_features TEXT,
         Min_sample_leaf REAL,
@@ -37,9 +37,6 @@ def create_rf_data_table(connection: sqlite3.Connection):
         N_estimator INTEGER,
         Accuracy REAL,
         Accuracy_train REAL,
-        PCA BOOLEAN,
-        PCA_Number INTEGER,
-        XGB_USE BOOLEAN,
         PARAMS TEXT,
         FileName TEXT
         
@@ -128,17 +125,17 @@ def insert_rf_data(connection: sqlite3.Connection, data: dict[str, Any]):
     create_rf_data_table(connection) 
 
     insert_query = """
-    INSERT INTO RF_data (Smote,CV, Variance, Solver, Max_depth, Max_features, Min_sample_leaf, 
-                         Min_sample_split, N_estimator, Accuracy, Accuracy_train, PCA,PCA_Number,XGB_USE,PARAMS,FileName)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?); """
+    INSERT INTO RF_data (Smote,CV, Sampling_Strategy,Sampling_number,Max_depth, Max_features, Min_sample_leaf, 
+                         Min_sample_split, N_estimator, Accuracy, Accuracy_train, PARAMS,FileName)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?); """
     
     try:
         cursor = connection.cursor()
         cursor.execute(insert_query, (
             data['Smote'],
             data['CV'],
-            data['Variance'],
-            data['Solver'],
+            data['Sampling_Strategy'],
+            data['Sampling_Number'],
             data['Max_depth'],
             data['Max_features'],
             data['Min_sample_leaf'],
@@ -146,9 +143,6 @@ def insert_rf_data(connection: sqlite3.Connection, data: dict[str, Any]):
             data['N_estimator'],
             data['Accuracy'],
             data['Accuracy_train'],
-            data['PCA'],
-            data['PCA_Number'],
-            data['XGB_USE'],
             data['PARAMS'],
             data['FileName']
             

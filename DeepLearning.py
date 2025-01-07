@@ -21,7 +21,7 @@ from IPython.display import display, HTML # Pour afficher les données dans Jupy
 from utils import process_and_plot_graphs2,print_evaluate,evaluate,prepare_data_graph
 from EcritureCSV import create_csv
 from DataProcessing import Nbr_Moons2,get_unique_planet_types
-from RandomForest import Calcul_XX_YY_2
+from ToolsAI import Calcul_XX_YY_2
 from Evetools import TriData
 from ModelHistory import save_dp_results
 

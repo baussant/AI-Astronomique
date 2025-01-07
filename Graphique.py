@@ -40,6 +40,16 @@ def Affichage_accuracy(y_test, y_pred, y_train, y_train_pred, encoder):
     print(report_train)    
     return report,report_train,accuracy,train_accuracy
 
+def Affichage_base(x_train, x_test, encoder, PCA_Number, best_k, grid_search):
+    print(f"-----------------------------------------------------------------------------------------\n")
+    print(f"Entraînement sur {x_train.shape[0]} échantillons, test sur {x_test.shape[0]} échantillons")
+    print(f"Nombre de classes : {len(encoder.classes_)}")
+    print(f"Classes : {encoder.classes_}")
+    print(f"Nombre de composantes principales : {PCA_Number}")
+    print(f"Nombre de voisins : {best_k}")
+    print(f"Meilleurs paramètres : {grid_search.best_estimator_}")
+    print(f"-----------------------------------------------------------------------------------------\n")
+
 def Affichage_confusion_matrix(y_test, y_pred, encoder):
     # Matrice de confusion
     cm = confusion_matrix(y_test, y_pred)
@@ -202,3 +212,15 @@ def Affichage_proba(y_test_proba):
     fig_proba = plt.gcf()
     plt.show()
     return fig_proba
+
+def Affichage_proba2(Y_test_proba,valid_classes):
+    plt.figure(figsize=(10, 6))
+    for i, class_name in enumerate(valid_classes):
+        sns.kdeplot(Y_test_proba[:, i], label=f'Class {class_name}')
+    plt.title('Probability Distributions by Class')
+    plt.xlabel('Predicted Probability')
+    plt.ylabel('Density')
+    plt.legend()
+    fig_Predict = plt.gcf()
+    plt.show()
+    return fig_Predict

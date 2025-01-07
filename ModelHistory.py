@@ -133,28 +133,10 @@ def save_knn_results(sampling_number,sampling_strategy,Smote,PCA_Number,best_par
     insert_knn_data(db_connection,sample_data)
     db_connection.close()   
 
+
 def save_rf_results(Smote,components_data_new,XGB_Use,Best_parameter,RF_model, scaler, pca, PCA_State, params, report_test,report_train, images,Value_cv, variance, Y_Target, X_Chara, Echantillon_min,accuracy,train_accuracy,Solver_Use, output_folder="RF"):
 
 
-    """
-    Enregistre les modèles, graphiques, et rapports dans un fichier ZIP.
-    
-    Parameters:
-    - knn_model : Le modèle KNN entraîné.
-    - scaler : L'objet StandardScaler utilisé pour la normalisation.
-    - pca : L'objet PCA utilisé si PCA_State est True.
-    - PCA_State : Booléen, indique si PCA a été utilisé.
-    - params : Dictionnaire des paramètres utilisés pour l'entraînement.
-    - report : Le rapport de classification sous forme de chaîne.
-    - images : Liste de tuples contenant les graphiques (nom_fichier, figure).
-    - output_folder : Nom du dossier où enregistrer les fichiers.
-    - Value_cv : Nombre de validations croisées.
-    - variance : Variance retenue par PCA.
-    - Y_Target : Cible d'entraînement.
-    - X_Chara : Caractéristiques d'entraînement.
-    - neighbor_max : Nombre maximal de voisins testé.
-    - Echantillon_min : Nombre minimal d'échantillons pour inclure une classe.
-    """
     # 1. Création du répertoire 'KNN' s'il n'existe pas
     os.makedirs(output_folder, exist_ok=True)
 
@@ -351,3 +333,99 @@ def save_dp_results(Smote_States,report,model,scaler, accuracy, accuracy_train, 
     insert_dp_data(db_connection,sample_data)
     db_connection.close()      
 
+def save_rf_results2(sampling_strategy,sampling_number,Smote,Best_parameter,model, grid_data , report_test,report_train, images,cv_data, Y_Target, X_Chara, Echantillon_min,accuracy,train_accuracy, output_folder="RF"):
+
+
+    # 1. Création du répertoire 'KNN' s'il n'existe pas
+    os.makedirs(output_folder, exist_ok=True)
+
+    # 2. Définir le nom du fichier ZIP de manière dynamique
+    date_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    pca_status = "With-Smote" if Smote else "Without-Smote"
+    #zip_filename = os.path.join(output_folder, f"{pca_status}-{date_str}.zip")
+    zip_filename = os.path.join(output_folder, f"{pca_status}-CV={cv_data}-{date_str}.zip")
+
+    # 3. Enregistrer les modèles dans des fichiers .pkl
+    rf_filename = os.path.join(output_folder, "rf_model.pkl")
+    joblib.dump(model, rf_filename)
+  
+    # 4. Enregistrer le fichier texte avec les paramètres et le rapport
+    params_filename = os.path.join(output_folder, "training_report.txt")
+    with open(params_filename, "w") as f:
+        f.write("===== Paramètres d'Entraînement =====\n")
+        for key, value in grid_data.items():
+            f.write(f"{key}: {value}\n")
+        f.write("==== Meilleurs Paramètres ========\n")
+        f.write(f"Best Parameters : {Best_parameter}\n")
+        f.write("\n===== Rapport de Classification =====\n")
+        f.write(f"Accuracy : {accuracy}\n")
+        f.write(f"Train Accuracy : {train_accuracy}\n\n")
+        f.write("\n===== Rapport set de test =====\n")
+        f.write(report_test)
+        f.write("\n===== Rapport set de train =====\n")
+        f.write(report_train)
+    
+    # 5. Enregistrer un fichier texte 'parameter' avec des détails supplémentaires
+    parameter_filename = os.path.join(output_folder, "parameters.txt")
+    with open(parameter_filename, "w") as f:
+        f.write("===== Paramètres Complémentaires =====\n")
+        f.write(f"Model: {model}\n")  
+        f.write(f"Y Target: {Y_Target}\n")
+        f.write(f"X Samples: {X_Chara}\n")
+        f.write(f"Echantillon_min: {Echantillon_min}\n")
+        f.write(f"Params: {grid_data}\n")
+        f.write(f"Smote: {Smote}\n")
+        f.write(f"Sampling_strategy: {sampling_strategy}\n")
+        f.write(f"Sampling_number: {sampling_number}\n")
+
+    # 6. Enregistrer les graphiques dans des fichiers images
+    image_files = []
+    for name, fig in images:
+        image_path = os.path.join(output_folder, f"{name}.png")
+        fig.savefig(image_path)
+        image_files.append(image_path)
+        plt.close(fig)  # Fermer la figure pour libérer la mémoire
+
+    # 7. Créer un fichier ZIP contenant tous les fichiers
+    with zipfile.ZipFile(zip_filename, "w") as zipf:
+        zipf.write(rf_filename, os.path.basename(rf_filename))
+        zipf.write(params_filename, os.path.basename(params_filename))
+        zipf.write(parameter_filename, os.path.basename(parameter_filename))
+        for img_file in image_files:
+            zipf.write(img_file, os.path.basename(img_file))
+
+    print(f"Fichiers sauvegardés dans {zip_filename}")
+
+    # 8. Nettoyage des fichiers intermédiaires (optionnel)
+    os.remove(rf_filename)
+    os.remove(params_filename)
+    os.remove(parameter_filename)
+    for img_file in image_files:
+        os.remove(img_file)        
+
+    params_to_text = ""
+
+    for key,value in grid_data.items():
+        params_to_text +=f"{key}:{value},"
+
+
+    sample_data = {
+        'Smote': Smote,
+        'CV':cv_data,
+        'Sampling_Strategy': sampling_strategy,
+        'Sampling_Number': sampling_number,
+        'Max_depth': Best_parameter['max_depth'],
+        'Max_features': Best_parameter['max_features'],
+        'Min_sample_leaf': Best_parameter['min_samples_leaf'],
+        'Min_sample_split': Best_parameter['min_samples_split'],
+        'N_estimator': Best_parameter['n_estimators'],
+        'Accuracy': accuracy,
+        'Accuracy_train': train_accuracy,
+        'PARAMS' : params_to_text,
+        'FileName':zip_filename
+       
+    }
+
+    db_connection = create_or_open_database("data.db")  
+    insert_rf_data(db_connection,sample_data)
+    db_connection.close()  
