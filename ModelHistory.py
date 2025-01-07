@@ -5,7 +5,7 @@ import datetime
 import matplotlib.pyplot as plt
 from SqliteDB import insert_rf_data,create_or_open_database,insert_knn_data,insert_dp_data
 
-def save_knn_results(Smote,PCA_Number,best_params,knn_model, scaler, pca, PCA_State, params, report, images,Value_cv, variance, Y_Target, X_Chara, neighbor_max, Echantillon_min,accuracy,train_accuracy, output_folder="KNN"):
+def save_knn_results(sampling_number,sampling_strategy,Smote,PCA_Number,best_params,knn_model, scaler, pca, PCA_State, params, report, images,Value_cv, variance, Y_Target, X_Chara, neighbor_max, Echantillon_min,accuracy,train_accuracy, output_folder="KNN"):
     """
     Enregistre les modèles, graphiques, et rapports dans un fichier ZIP.
     
@@ -71,6 +71,8 @@ def save_knn_results(Smote,PCA_Number,best_params,knn_model, scaler, pca, PCA_St
         f.write(f"Echantillon_min: {Echantillon_min}\n")
         f.write(f"Params: {params}\n")
         f.write(f"Smote: {Smote}\n")
+        f.write(f"Sampling_strategy: {sampling_strategy}\n")
+        f.write(f"Sampling_number: {sampling_number}\n")
 
     # 6. Enregistrer les graphiques dans des fichiers images
     image_files = []
@@ -110,6 +112,8 @@ def save_knn_results(Smote,PCA_Number,best_params,knn_model, scaler, pca, PCA_St
 
     sample_data = {
         'Smote': Smote,
+        'Sampling_Strategy': sampling_strategy,
+        'Sampling_Number': sampling_number,
         'CV':Value_cv,
         'Variance':variance,
         'Neighbor_Max': neighbor_max,

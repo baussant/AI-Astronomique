@@ -12,32 +12,58 @@ from sklearn.utils.class_weight import compute_class_weight
 from imblearn.over_sampling import SMOTE
 from IPython.display import display, HTML # Pour afficher les données dans Jupyter Notebook avec un format HTML
 from tensorflow.keras.utils import to_categorical # type: ignore
+from collections import Counter
 
-def PCA(variance,X_scaled):
-    # Réduction des dimensions
-    pca = PCA(n_components=variance)  # Conserver XX% de la variance
-    X_pca = pca.fit_transform(X_scaled)
-    X_final = X_pca
-    # Afficher ou utiliser le nombre de PCA pris en compte
-    PCA_Number = pca._n_features_out
-    return X_final,PCA_Number,pca
+def split_data(X, Y, test_size=0.2, random_state=42):
+    """
+    Divise les données en ensembles d'entraînement et de test.
+    """
+    return train_test_split(X, Y, test_size=test_size, random_state=random_state)
 
-def Smote(neighbors_number,X_pca,Y,Random_State,encoder):
-    # Rééquilibrage des classes avec SMOTE
-    smote = SMOTE(random_state=Random_State,k_neighbors=neighbors_number)
-    X_resampled, Y_resampled = smote.fit_resample(X_pca, Y)
+def apply_smote(X_train, Y_train, valid_classes, sampling_strategy, sampling_number, random_state=42):
+    """
+    Applique SMOTE pour rééquilibrer les classes dans l'ensemble d'entraînement.
+    """
+    smote_neighbors = min(3, max(1, len(valid_classes) - 1))
+    smote = SMOTE(random_state=random_state, k_neighbors=smote_neighbors, sampling_strategy=sampling_strategy)
+    X_resampled, Y_resampled = smote.fit_resample(X_train, Y_train)
 
-    # Décodage des valeurs
-    Y_resampled2 = pd.DataFrame()
-    Y_resampled2['TypeCoreName'] = encoder.inverse_transform(Y_resampled['TypeCoreName'])
-    print("----------------  Répartiton Donnée après Smote --------------\n")  
-    typecore_count = Y_resampled2['TypeCoreName'].value_counts()
-    typecore_table = typecore_count.to_frame().T  # Vision Horizontal
-    print(typecore_table)
-    print(f"\n\n")
-    return X_resampled,Y_resampled
+    return X_resampled, Y_resampled  
 
-def Etiq_One_Hot(y,encoder):
-    # Conversion des étiquettes en one-hot
-    y_categorical = to_categorical(y, num_classes=len(encoder.classes_))        
-    return y_categorical
+def apply_pca(X_resampled, X_test, variance):
+    """
+    Réduit les dimensions avec PCA sur les ensembles d'entraînement et de test.
+    """
+    pca = PCA(n_components=variance)
+    X_pca_train = pca.fit_transform(X_resampled)
+    X_pca_test = pca.transform(X_test)
+    print(f"Nombre de composantes principales retenues : {pca.n_components_}")
+    return X_pca_train, X_pca_test, pca.n_components_,pca        
+
+def sampling(sampling_strategy,Y,encoder,sampling_number):
+    if isinstance(sampling_strategy, dict):       # Si Y est encodé, ajuster sampling_strategy aux indices
+        decoded_classes = encoder.inverse_transform(np.unique(Y))  # Classes originales
+        sampling_strategy2 = {
+            encoder.transform([cls])[0]: sampling_strategy[cls]
+            for cls in sampling_strategy
+            if cls in decoded_classes
+        }
+        if not sampling_strategy2:
+            raise ValueError("Aucune des classes spécifiées dans 'sampling_strategy' n'est présente dans les données après encodage.")
+    elif sampling_strategy == True:
+        # Stratégie par défaut pour équilibrer toutes les classes
+        # Assurez-vous que Y est une liste unidimensionnelle de classes encodées
+        if isinstance(Y, pd.DataFrame):
+            YY = Y.iloc[:, 0].tolist()  # Convertir en liste si c'est un DataFrame avec une seule colonne
+        elif isinstance(Y, pd.Series):
+            YY = Y.tolist()  # Convertir en liste si c'est une Series
+        class_counts2 = Counter(YY)
+        max_target = sampling_number
+        sampling_strategy2 = {
+        cls: max(count, max_target)  # Garder la fréquence actuelle si elle est supérieure à target_samples
+        for cls, count in class_counts2.items()
+        }
+    else:
+        sampling_number = 'N/A'
+        sampling_strategy2 = 'auto'  
+    return sampling_strategy2,sampling_number   

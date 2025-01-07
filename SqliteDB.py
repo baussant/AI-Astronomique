@@ -63,6 +63,8 @@ def create_knn_data_table(connection: sqlite3.Connection):
     """
     create_table_query ="""CREATE TABLE IF NOT EXISTS KNN_data (
         Smote BOOLEAN,
+        Sampling_Strategy TEXT,
+        Sampling_Number TEXT,
         CV INTEGER,
         Variance REAL,
         Neighbor_Max INTEGER,
@@ -202,14 +204,16 @@ def insert_knn_data(connection: sqlite3.Connection, data: dict[str, Any]):
     create_knn_data_table(connection) 
 
     insert_query = """
-    INSERT INTO KNN_data (Smote,CV,Variance,Neighbor_Max,Neighbor,Weights,Metric,
+    INSERT INTO KNN_data (Smote,Sampling_Strategy,Sampling_Number,CV,Variance,Neighbor_Max,Neighbor,Weights,Metric,
                         Accuracy,Accuracy_train,PCA,PCA_Number,PARAMS,FileName)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?); """
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?); """
     
     try:
         cursor = connection.cursor()
         cursor.execute(insert_query, (
             data['Smote'],
+            data['Sampling_Strategy'],
+            data['Sampling_Number'],
             data['CV'],
             data['Variance'],
             data['Neighbor_Max'],
