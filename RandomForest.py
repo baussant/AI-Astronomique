@@ -99,13 +99,4 @@ def RandomForest2(sampling_strategy,sampling_number,smote_status,data,  grid_dat
     images.append(("Probability", fig_proba))
 
     if Save_Model:
-        PCA_State= False
-        Smote= smote_status
-        components_data_new=0
-        scaler=0
-        pca=0
-        XGB_Use=False
-        Solver_Use='N/A'
-        variance=0
-        #save_rf_results(Smote,components_data_new,XGB_Use,Best_parameter,model, scaler, pca, PCA_State, grid_data , report,report_train, images,cv_data, variance, Y_Target, X_Chara, Echantillon_min,accuracy,train_accuracy,Solver_Use, output_folder="RF")
-        save_rf_results2(sampling_strategy,sampling_number,Smote,Best_parameter,model, grid_data , report,report_train, images,cv_data, Y_Target, X_Chara, Echantillon_min,accuracy,train_accuracy, output_folder="RF")
+        save_rf_results2(sampling_strategy,sampling_number,smote_status,Best_parameter,model, grid_data , report,report_train, images,cv_data, Y_Target, X_Chara, Echantillon_min,accuracy,train_accuracy, output_folder="RF")
