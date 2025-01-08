@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split,cross_val_score,GridSearchC
 from sklearn.preprocessing import LabelEncoder,StandardScaler
 from sklearn.metrics import classification_report,confusion_matrix, ConfusionMatrixDisplay
 from sklearn.utils.class_weight import compute_class_weight
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import SMOTE, BorderlineSMOTE, ADASYN
 from IPython.display import display, HTML # Pour afficher les données dans Jupyter Notebook avec un format HTML
 from tensorflow.keras.utils import to_categorical # type: ignore
 from collections import Counter
@@ -18,17 +18,31 @@ def split_data(X, Y, test_size=0.2, random_state=42):
     """
     Divise les données en ensembles d'entraînement et de test.
     """
-    return train_test_split(X, Y, test_size=test_size, random_state=random_state)
+    return train_test_split(X, Y, test_size=test_size, random_state=random_state, stratify=Y)
 
-def apply_smote(X_train, Y_train, valid_classes, sampling_strategy, sampling_number, random_state=42):
-    """
-    Applique SMOTE pour rééquilibrer les classes dans l'ensemble d'entraînement.
-    """
+def apply_smote(X_train, Y_train, valid_classes, sampling_strategy):
+
     smote_neighbors = min(3, max(1, len(valid_classes) - 1))
-    smote = SMOTE(random_state=random_state, k_neighbors=smote_neighbors, sampling_strategy=sampling_strategy)
+    smote = SMOTE(random_state=42, k_neighbors=smote_neighbors, sampling_strategy=sampling_strategy)
     X_resampled, Y_resampled = smote.fit_resample(X_train, Y_train)
 
     return X_resampled, Y_resampled  
+
+def apply_BorderlineSMOTE(X_train, Y_train, valid_classes, sampling_strategy):
+
+    smote_neighbors = min(3, max(1, len(valid_classes) - 1))
+    borderline_smote = BorderlineSMOTE(random_state=42, k_neighbors=smote_neighbors)
+    X_resampled, Y_resampled = borderline_smote.fit_resample(X_train, Y_train)
+
+    return X_resampled, Y_resampled
+
+def apply_ADASYN(X_train, Y_train, valid_classes, sampling_strategy):
+
+    smote_neighbors = min(3, max(1, len(valid_classes) - 1))
+    adasyn = ADASYN(random_state=42, n_neighbors=smote_neighbors)
+    X_resampled, Y_resampled = adasyn.fit_resample(X_train, Y_train)
+
+    return X_resampled, Y_resampled
 
 def apply_pca(X_resampled, X_test, variance):
     """

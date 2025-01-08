@@ -59,19 +59,20 @@ def create_knn_data_table(connection: sqlite3.Connection):
     (knn,scaler,pca if PCA_State else None,PCA_State,param_grid,report,images,Value_cv,variance,Y_Target,X_Chara,neighbor_max,Echantillon_min,accuracy,train_accuracy)
     """
     create_table_query ="""CREATE TABLE IF NOT EXISTS KNN_data (
-        Smote BOOLEAN,
+        Smote TEXT,
         Sampling_Strategy TEXT,
         Sampling_Number TEXT,
         CV INTEGER,
         Variance REAL,
         Neighbor_Max INTEGER,
+        Neighbor_Min INTEGER,
         Neighbor INTEGER,
         Weights TEXT,
         Metric TEXT,
         Accuracy REAL,
         Accuracy_train REAL,
         PCA BOOLEAN,
-        PCA_Number INTEGER,
+        PCA_Number TEXT,
         PARAMS TEXT,
         FileName TEXT
         
@@ -198,9 +199,9 @@ def insert_knn_data(connection: sqlite3.Connection, data: dict[str, Any]):
     create_knn_data_table(connection) 
 
     insert_query = """
-    INSERT INTO KNN_data (Smote,Sampling_Strategy,Sampling_Number,CV,Variance,Neighbor_Max,Neighbor,Weights,Metric,
+    INSERT INTO KNN_data (Smote,Sampling_Strategy,Sampling_Number,CV,Variance,Neighbor_Max,Neighbor_Min,Neighbor,Weights,Metric,
                         Accuracy,Accuracy_train,PCA,PCA_Number,PARAMS,FileName)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?); """
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?); """
     
     try:
         cursor = connection.cursor()
@@ -211,6 +212,7 @@ def insert_knn_data(connection: sqlite3.Connection, data: dict[str, Any]):
             data['CV'],
             data['Variance'],
             data['Neighbor_Max'],
+            data['Neighbor_Min'],
             data['Neighbor'],
             data['Weights'],
             data['Metric'],

@@ -1,23 +1,14 @@
 import numpy as np # type: ignore
 import matplotlib.pyplot as plt # type: ignore
 import pandas as pd # type: ignore
-import seaborn as sns
-import xgboost as xgb
-import GPUtil
-import joblib
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score,roc_curve,auc
-from sklearn.decomposition import PCA
-from sklearn.pipeline import Pipeline
-from sklearn.model_selection import train_test_split,cross_val_score,GridSearchCV,RandomizedSearchCV,learning_curve
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.preprocessing import StandardScaler,LabelEncoder,label_binarize
-from imblearn.over_sampling import SMOTE
-from xgboost import XGBClassifier, XGBRegressor
-from utils import  print_evaluate
+from sklearn.metrics import  accuracy_score,roc_curve,auc
+from sklearn.model_selection import GridSearchCV,RandomizedSearchCV,learning_curve
+from sklearn.ensemble import  RandomForestClassifier
+from sklearn.preprocessing import label_binarize
 from Graphique import Affichage_accuracy, Affichage_confusion_matrix, Affichage_roc_curve,Affichage_courbe_apprentissage,Affichage_proba2
 from EcritureCSV import create_csv
-from ModelHistory import save_rf_results,save_rf_results2
-from ToolsAI import Calcul_XX_YY, split_data, apply_smote, apply_pca,sampling
+from ModelHistory import save_rf_results2
+from ToolsAI import Calcul_XX_YY, split_data, apply_smote, sampling
 
 def RandomForest2(sampling_strategy,sampling_number,smote_status,data,  grid_data, cv_data, X_Chara, Y_Target,Echantillon_min,Save_Model):
 
@@ -45,7 +36,7 @@ def RandomForest2(sampling_strategy,sampling_number,smote_status,data,  grid_dat
         # Vérification des correspondances entre sampling_strategy et les valeurs encodées de Y
         sampling_strategy2,sampling_number = sampling(sampling_strategy,Y_train,encoder,sampling_number)
         # Étape 2 : Appliquer SMOTE
-        X_train_resampled, Y_train_resampled = apply_smote(X_train, Y_train, valid_classes, sampling_strategy2,sampling_number)
+        X_train_resampled, Y_train_resampled = apply_smote(X_train, Y_train, valid_classes, sampling_strategy2)
         # Décodage pour affichage
         Y_resampled_decoded = pd.DataFrame({'TypeCoreName': encoder.inverse_transform(Y_train_resampled)})
         print("----------------  Répartition Données après SMOTE --------------\n")
@@ -58,7 +49,7 @@ def RandomForest2(sampling_strategy,sampling_number,smote_status,data,  grid_dat
 
     # Choix du modèle (Classification)
     model = RandomForestClassifier(random_state=42, class_weight='balanced')
-    scoring_metric = 'accuracy'
+    scoring_metric = ['accuracy','f1_macro']
 
     # Optimisation des hyperparamètres avec GridSearchCV
     grid_search = GridSearchCV(
@@ -66,6 +57,8 @@ def RandomForest2(sampling_strategy,sampling_number,smote_status,data,  grid_dat
         param_grid=grid_data,
         cv=cv_data,
         scoring=scoring_metric,
+        refit='f1_macro',
+        verbose=1,
         n_jobs=-1
     )
     grid_search.fit(X_train_resampled, Y_train_resampled)
@@ -74,6 +67,7 @@ def RandomForest2(sampling_strategy,sampling_number,smote_status,data,  grid_dat
     best_model = grid_search.best_estimator_
     Best_parameter = grid_search.best_params_
     print("Meilleurs hyperparamètres :", Best_parameter)
+    print(f"Scoring : ")
 
     # Prédictions sur les ensembles d'entraînement et de test
     Y_train_pred = best_model.predict(X_train_resampled)

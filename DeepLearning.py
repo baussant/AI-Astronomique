@@ -167,7 +167,7 @@ class LearningRateLogger(tf.keras.callbacks.Callback):
             self.lr_history = []
         self.lr_history.append(lr)
 
-
+ 
 def Affichage(model,y_test,X_test_cnn,encoder,X_train_cnn,y_train,history,lr_logger):
 
     # Évaluation
@@ -259,3 +259,200 @@ def Affichage(model,y_test,X_test_cnn,encoder,X_train_cnn,y_train,history,lr_log
     images.append(("Tracer les courbes de l'évolution du taux d'apprentissage ", fig_apprentissage)) 
 
     return images, accuracy_test, accuracy_train,report
+
+
+
+def Deep2(Smote_State, df_planet, Echantillon_min, Y_Target, X_Chara, Weight_Class, Adjust_Factor, Epoque, batch_size_nbr, Learning_Rate, Save_Model):
+
+    # Charger les données
+    df = df_planet.copy()
+
+    # Filtrer les classes avec suffisamment de données
+    class_counts = df['TypeCoreName'].value_counts()
+    valid_classes = class_counts[class_counts > Echantillon_min].index
+    data = df[df['TypeCoreName'].isin(valid_classes)]
+
+    # Calcul des données d'entrée et de sortie
+    X, y, encoder = Calcul_XX_YY_2(data, Y_Target, X_Chara)
+
+    # Appliquer SMOTE pour équilibrer les classes avant normalisation
+    if Smote_State:
+        smote = SMOTE(random_state=42)
+        X_resampled, y_resampled = smote.fit_resample(X, y)  # SMOTE sur données non normalisées
+    else:
+        X_resampled, y_resampled = X, y
+
+    # Normalisation des données après SMOTE
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_resampled)
+
+    # Conversion des étiquettes en one-hot encoding
+    y_categorical = to_categorical(y_resampled, num_classes=len(encoder.classes_))
+
+    # Diviser en ensemble d'entraînement, de validation et de test directement
+    X_train, X_temp, y_train, y_temp = train_test_split(X_scaled, y_categorical, test_size=0.3, random_state=42)
+    X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
+
+    # Reshape des données pour les couches convolutives
+    X_train_cnn = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
+    X_val_cnn = X_val.reshape((X_val.shape[0], X_val.shape[1], 1))
+    X_test_cnn = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
+
+    # Calcul des poids de classe avant SMOTE
+    if not Smote_State:
+        class_weights = compute_class_weight('balanced', classes=np.unique(y), y=y)
+        class_weights = dict(enumerate(class_weights))
+    else:
+        class_weights = None
+
+    if Weight_Class:
+        # Ajuster les poids des classes
+        print("Poids des classes avant ajustement :", class_weights)
+
+        # Augmenter les poids pour les classes avec faible rappel
+        adjustment_factor = Adjust_Factor  # Facteur d'augmentation des poids pour les classes faibles
+        class_weights[0] *= adjustment_factor  # Augmenter le poids pour Planet (Barren)
+        class_weights[4] *= adjustment_factor  # Augmenter le poids pour Planet (Oceanic)
+
+        # Affichage des poids ajustés
+        print("Poids des classes après ajustement :", class_weights)
+
+    # Définir le modèle CNN
+    model = Sequential([
+        Conv1D(filters=64, kernel_size=3, activation='relu', input_shape=(X_train_cnn.shape[1], 1)),
+        MaxPooling1D(pool_size=2),
+        Dropout(0.3),
+
+        Conv1D(filters=128, kernel_size=3, activation='relu'),
+        MaxPooling1D(pool_size=1),
+        Dropout(0.4),
+
+        Flatten(),
+
+        Dense(256, activation='relu', kernel_initializer=tf.keras.initializers.HeNormal(),
+              kernel_regularizer=tf.keras.regularizers.L2(0.01)),
+        BatchNormalization(),
+        Dropout(0.4),
+
+        Dense(128, activation='relu', kernel_initializer=tf.keras.initializers.HeNormal(),
+              kernel_regularizer=tf.keras.regularizers.L2(0.01)),
+        BatchNormalization(),
+        Dropout(0.4),
+
+        Dense(64, activation='relu', kernel_initializer=tf.keras.initializers.HeNormal()),
+
+        Dense(len(encoder.classes_), activation='softmax')
+    ])
+
+    # Compilation du modèle
+    optimizer = Adam(learning_rate=Learning_Rate)
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+
+    # Configuration GPU
+    print("GPU disponible : ", tf.config.list_physical_devices('GPU'))
+    gpus = tf.config.list_physical_devices('GPU')
+    if gpus:
+        try:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError as e:
+            print(e)
+
+    # Callbacks pour l'entraînement
+    early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.4, patience=3, min_lr=1e-5)
+
+    # Entraîner le modèle
+    history = model.fit(
+        X_train_cnn, y_train,
+        validation_data=(X_val_cnn, y_val),
+        epochs=Epoque,
+        batch_size=batch_size_nbr,
+        class_weight=class_weights,
+        callbacks=[early_stopping, reduce_lr]
+    )
+
+    # Évaluation et affichage des résultats
+    images, accuracy, accuracy_train, report = Affichage2(model, y_test, X_test_cnn, encoder, X_train_cnn, y_train, history, reduce_lr)
+
+    if Save_Model:
+        save_dp_results(Smote_State, report, model, scaler, accuracy, accuracy_train, images, Echantillon_min, Weight_Class, Adjust_Factor, Epoque, batch_size_nbr, Learning_Rate)
+
+
+class LearningRateLogger(tf.keras.callbacks.Callback):
+    def on_epoch_end(self, epoch, logs=None):
+        lr = self.model.optimizer.learning_rate.numpy()
+        if not hasattr(self, 'lr_history'):
+            self.lr_history = []
+        self.lr_history.append(lr)
+
+
+def Affichage2(model, y_test, X_test_cnn, encoder, X_train_cnn, y_train, history, lr_logger):
+
+    # Évaluation sur les ensembles d'entraînement et de test
+    loss_test, accuracy_test = model.evaluate(X_test_cnn, y_test, verbose=0)
+    loss_train, accuracy_train = model.evaluate(X_train_cnn, y_train, verbose=0)
+
+    print(f"Précision sur les données de test : {accuracy_test:.2f}")
+    print(f"Précision sur les données d'entraînement : {accuracy_train:.2f}")
+
+    # Rapport de classification
+    y_pred = model.predict(X_test_cnn).argmax(axis=1)
+    y_test_classes = y_test.argmax(axis=1)
+    report = classification_report(y_test_classes, y_pred, target_names=encoder.classes_)
+    print(report)
+
+    # Courbes de perte et précision
+    plt.figure()
+    plt.plot(history.history['loss'], label='Loss - Entraînement')
+    plt.plot(history.history['val_loss'], label='Loss - Validation')
+    plt.xlabel('Époques')
+    plt.ylabel('Perte')
+    plt.title('Perte en fonction des époques')
+    plt.legend()
+    fig_loss = plt.gcf()
+    plt.show()
+
+    plt.figure()
+    plt.plot(history.history['accuracy'], label='Précision - Entraînement')
+    plt.plot(history.history['val_accuracy'], label='Précision - Validation')
+    plt.xlabel('Époques')
+    plt.ylabel('Précision')
+    plt.title('Précision en fonction des époques')
+    plt.legend()
+    fig_accuracy = plt.gcf()
+    plt.show()
+
+    # Courbes ROC
+    y_test_binary = label_binarize(y_test_classes, classes=range(len(encoder.classes_)))
+    y_pred_prob = model.predict(X_test_cnn)
+
+    for i, class_name in enumerate(encoder.classes_):
+        fpr, tpr, _ = roc_curve(y_test_binary[:, i], y_pred_prob[:, i])
+        plt.plot(fpr, tpr, label=f"{class_name} (AUC = {auc(fpr, tpr):.2f})")
+
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.title("Courbe ROC par Classe")
+    plt.xlabel("Taux de Faux Positifs")
+    plt.ylabel("Taux de Vrais Positifs")
+    plt.legend()
+    fig_roc = plt.gcf()
+    plt.show()
+
+    # Matrice de confusion
+    cm = confusion_matrix(y_test_classes, y_pred)
+    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=encoder.classes_).plot(cmap='viridis')
+    plt.title('Matrice de confusion')
+    plt.xticks(rotation=90)
+    fig_confusion = plt.gcf()
+    plt.show()
+
+    images = [
+        ("Courbes de perte", fig_loss),
+        ("Courbes de précision", fig_accuracy),
+        ("Courbes ROC", fig_roc),
+        ("Matrice de confusion", fig_confusion)
+    ]
+
+    return images, accuracy_test, accuracy_train, report
+
