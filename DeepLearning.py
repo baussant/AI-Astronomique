@@ -153,6 +153,7 @@ def Deep(Smote_State,df_planet,Echantillon_min,Y_Target,X_Chara,Weight_Class,Adj
         class_weight=class_weights,  # Application des poids de classe
         callbacks=[early_stopping, reduce_lr, lr_logger])
 
+    print(f"\n\n\n\n\n\n\n\n")
     images, accuracy, accuracy_train,report = Affichage(model,y_test,X_test_cnn,encoder,X_train_cnn,y_train,history,lr_logger)
 
     if Save_Model:
@@ -170,35 +171,12 @@ class LearningRateLogger(tf.keras.callbacks.Callback):
  
 def Affichage(model,y_test,X_test_cnn,encoder,X_train_cnn,y_train,history,lr_logger):
 
-    # Évaluation
-    loss_test, accuracy_test = model.evaluate(X_test_cnn, y_test, verbose=0)
-    print(f"-------------------------------------------------------\n")
-    print(f"Précision sur les données de test : {accuracy_test:.2f}\n")
 
-    # Évaluation sur les données d'entraînement
-    loss_train, accuracy_train = model.evaluate(X_train_cnn, y_train, verbose=0)
-    print(f"-------------------------------------------------------\n")
-    print(f"Précision sur les données d'entraînement : {accuracy_train:.2f}\n")
 
-    # Générer un rapport de classification détaillé
-    y_pred = model.predict(X_test_cnn)
-    y_pred_classes = y_pred.argmax(axis=1)
-    y_test_classes = y_test.argmax(axis=1)
-    report = classification_report(y_test_classes, y_pred_classes, target_names=encoder.classes_)
-    print(f"-------------------------------------------------------\n")
-    print(f"---------------- Rapport sur données de Test ----------\n")
-    print(f"-------------------------------------------------------\n")
-    print(report)
 
-    Y_pred_train = model.predict(X_train_cnn)
-    Y_pred_train_classes = Y_pred_train.argmax(axis=1)
-    Y_train_classes = y_train.argmax(axis=1)
-    report_train = classification_report(Y_train_classes, Y_pred_train_classes, target_names=encoder.classes_)
+    print(f"\n-------------------------------------------------------\n")
+    print(f"---------------- Graphique ----------------------------\n")
     print(f"-------------------------------------------------------\n")
-    print(f"---------------- Rapport sur données de Train ---------\n")
-    print(f"-------------------------------------------------------\n")
-    print(report_train)
-
     # Tracer les courbes de perte (loss)
     plt.figure()
     plt.plot(history.history['loss'], label='Loss - Entraînement')
@@ -258,6 +236,35 @@ def Affichage(model,y_test,X_test_cnn,encoder,X_train_cnn,y_train,history,lr_log
     images.append(("Tracer les courbes ROC et AUC ", fig_roc)) 
     images.append(("Tracer les courbes de l'évolution du taux d'apprentissage ", fig_apprentissage)) 
 
+        # Évaluation
+    loss_test, accuracy_test = model.evaluate(X_test_cnn, y_test, verbose=0)
+    print(f"-------------------------------------------------------\n")
+    print(f"Précision sur les données de test : {accuracy_test:.2f}\n")
+
+    # Évaluation sur les données d'entraînement
+    loss_train, accuracy_train = model.evaluate(X_train_cnn, y_train, verbose=0)
+    print(f"-------------------------------------------------------\n")
+    print(f"Précision sur les données d'entraînement : {accuracy_train:.2f}\n")
+
+    # Générer un rapport de classification détaillé
+    y_pred = model.predict(X_test_cnn)
+    y_pred_classes = y_pred.argmax(axis=1)
+    y_test_classes = y_test.argmax(axis=1)
+    report = classification_report(y_test_classes, y_pred_classes, target_names=encoder.classes_)
+    print(f"-------------------------------------------------------\n")
+    print(f"---------------- Rapport sur données de Test ----------\n")
+    print(f"-------------------------------------------------------\n")
+    print(report)
+
+    Y_pred_train = model.predict(X_train_cnn)
+    Y_pred_train_classes = Y_pred_train.argmax(axis=1)
+    Y_train_classes = y_train.argmax(axis=1)
+    report_train = classification_report(Y_train_classes, Y_pred_train_classes, target_names=encoder.classes_)
+    print(f"\n-------------------------------------------------------\n")
+    print(f"---------------- Rapport sur données de Train ---------\n")
+    print(f"-------------------------------------------------------\n")
+    print(report_train)
+
     return images, accuracy_test, accuracy_train,report
 
 
@@ -275,23 +282,31 @@ def Deep2(Smote_State, df_planet, Echantillon_min, Y_Target, X_Chara, Weight_Cla
     # Calcul des données d'entrée et de sortie
     X, y, encoder = Calcul_XX_YY_2(data, Y_Target, X_Chara)
 
+        # Normalisation des données après SMOTE
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+        # Diviser en ensemble d'entraînement, de validation et de test directement
+    X_train, X_temp, y_train, y_temp = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+    X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
+
     # Appliquer SMOTE pour équilibrer les classes avant normalisation
     if Smote_State:
         smote = SMOTE(random_state=42)
-        X_resampled, y_resampled = smote.fit_resample(X, y)  # SMOTE sur données non normalisées
+        X_resampled, y_resampled = smote.fit_resample(X_train, y_train)  # SMOTE sur données non normalisées
+        Y_resampled_decoded = pd.DataFrame({'TypeCoreName': encoder.inverse_transform(y_resampled)})
+        print(f"-------------------------------------------------------------------------\n")
+        print(f"----------------  Répartition Données après Smote --------------\n")
+        typecore_count = Y_resampled_decoded['TypeCoreName'].value_counts()
+        typecore_table = typecore_count.to_frame().T
+        print(typecore_table)
     else:
-        X_resampled, y_resampled = X, y
-
-    # Normalisation des données après SMOTE
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X_resampled)
+        X_resampled, y_resampled = X_scaled, y
 
     # Conversion des étiquettes en one-hot encoding
-    y_categorical = to_categorical(y_resampled, num_classes=len(encoder.classes_))
-
-    # Diviser en ensemble d'entraînement, de validation et de test directement
-    X_train, X_temp, y_train, y_temp = train_test_split(X_scaled, y_categorical, test_size=0.3, random_state=42)
-    X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
+    y_train_categorical = to_categorical(y_train, num_classes=len(encoder.classes_))
+    y_val_categorical = to_categorical(y_val, num_classes=len(encoder.classes_))
+    y_test_categorical = to_categorical(y_test, num_classes=len(encoder.classes_))
 
     # Reshape des données pour les couches convolutives
     X_train_cnn = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
@@ -305,16 +320,16 @@ def Deep2(Smote_State, df_planet, Echantillon_min, Y_Target, X_Chara, Weight_Cla
     else:
         class_weights = None
 
-    if Weight_Class:
-        # Ajuster les poids des classes
+    if Weight_Class and class_weights is not None:
         print("Poids des classes avant ajustement :", class_weights)
 
-        # Augmenter les poids pour les classes avec faible rappel
-        adjustment_factor = Adjust_Factor  # Facteur d'augmentation des poids pour les classes faibles
-        class_weights[0] *= adjustment_factor  # Augmenter le poids pour Planet (Barren)
-        class_weights[4] *= adjustment_factor  # Augmenter le poids pour Planet (Oceanic)
+        # Ajuster les poids des classes avec un facteur d'ajustement
+        adjustment_factor = Adjust_Factor
+        if 0 in class_weights:
+            class_weights[0] *= adjustment_factor
+        if 4 in class_weights:
+            class_weights[4] *= adjustment_factor
 
-        # Affichage des poids ajustés
         print("Poids des classes après ajustement :", class_weights)
 
     # Définir le modèle CNN
@@ -348,8 +363,7 @@ def Deep2(Smote_State, df_planet, Echantillon_min, Y_Target, X_Chara, Weight_Cla
     optimizer = Adam(learning_rate=Learning_Rate)
     model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
-    # Configuration GPU
-    print("GPU disponible : ", tf.config.list_physical_devices('GPU'))
+    print("GPU disponible :", tf.config.list_physical_devices('GPU'))
     gpus = tf.config.list_physical_devices('GPU')
     if gpus:
         try:
@@ -364,8 +378,8 @@ def Deep2(Smote_State, df_planet, Echantillon_min, Y_Target, X_Chara, Weight_Cla
 
     # Entraîner le modèle
     history = model.fit(
-        X_train_cnn, y_train,
-        validation_data=(X_val_cnn, y_val),
+        X_train_cnn, y_train_categorical,
+        validation_data=(X_val_cnn, y_val_categorical),
         epochs=Epoque,
         batch_size=batch_size_nbr,
         class_weight=class_weights,
@@ -373,10 +387,10 @@ def Deep2(Smote_State, df_planet, Echantillon_min, Y_Target, X_Chara, Weight_Cla
     )
 
     # Évaluation et affichage des résultats
-    images, accuracy, accuracy_train, report = Affichage2(model, y_test, X_test_cnn, encoder, X_train_cnn, y_train, history, reduce_lr)
+    images, accuracy, accuracy_train, report_test,report_train = Affichage2(model, y_test_categorical, X_test_cnn, encoder, X_train_cnn, y_train_categorical, history, reduce_lr)
 
     if Save_Model:
-        save_dp_results(Smote_State, report, model, scaler, accuracy, accuracy_train, images, Echantillon_min, Weight_Class, Adjust_Factor, Epoque, batch_size_nbr, Learning_Rate)
+        save_dp_results(Smote_State, report_test,report_train, model, scaler, accuracy, accuracy_train, images, Echantillon_min, Weight_Class, Adjust_Factor, Epoque, batch_size_nbr, Learning_Rate)
 
 
 class LearningRateLogger(tf.keras.callbacks.Callback):
@@ -393,14 +407,36 @@ def Affichage2(model, y_test, X_test_cnn, encoder, X_train_cnn, y_train, history
     loss_test, accuracy_test = model.evaluate(X_test_cnn, y_test, verbose=0)
     loss_train, accuracy_train = model.evaluate(X_train_cnn, y_train, verbose=0)
 
-    print(f"Précision sur les données de test : {accuracy_test:.2f}")
-    print(f"Précision sur les données d'entraînement : {accuracy_train:.2f}")
+    print(f"--------------------------------------------------------------\n")
+    print(f"-------------------- Accuracy --------------------------------\n")
+    print(f"--------------------------------------------------------------\n")
+    print(f"Précision sur les données de test : {accuracy_test:.2f}\n")
+    print(f"Précision sur les données d'entraînement : {accuracy_train:.2f}\n")
 
+    print(f"--------------------------------------------------------------\n")
+    print(f"-------------------- Report Test -----------------------------\n")
+    print(f"--------------------------------------------------------------\n")
     # Rapport de classification
-    y_pred = model.predict(X_test_cnn).argmax(axis=1)
+    y_pred_test = model.predict(X_test_cnn).argmax(axis=1)
     y_test_classes = y_test.argmax(axis=1)
-    report = classification_report(y_test_classes, y_pred, target_names=encoder.classes_)
-    print(report)
+    report_test = classification_report(y_test_classes, y_pred_test, target_names=encoder.classes_)
+    print(report_test)
+
+    print(f"--------------------------------------------------------------\n")
+    print(f"-------------------- Report train ----------------------------\n")
+    print(f"--------------------------------------------------------------\n")
+    y_pred_train = model.predict(X_train_cnn).argmax(axis=1)
+    y_train_classes = y_train.argmax(axis=1)
+    report_train = classification_report(y_train_classes, y_pred_train, target_names=encoder.classes_)
+    print(report_train)
+
+    # Matrice de confusion
+    cm = confusion_matrix(y_test_classes, y_pred_test)
+    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=encoder.classes_).plot(cmap='viridis')
+    plt.title('Matrice de confusion')
+    plt.xticks(rotation=90)
+    fig_confusion = plt.gcf()
+    plt.show()
 
     # Courbes de perte et précision
     plt.figure()
@@ -439,13 +475,6 @@ def Affichage2(model, y_test, X_test_cnn, encoder, X_train_cnn, y_train, history
     fig_roc = plt.gcf()
     plt.show()
 
-    # Matrice de confusion
-    cm = confusion_matrix(y_test_classes, y_pred)
-    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=encoder.classes_).plot(cmap='viridis')
-    plt.title('Matrice de confusion')
-    plt.xticks(rotation=90)
-    fig_confusion = plt.gcf()
-    plt.show()
 
     images = [
         ("Courbes de perte", fig_loss),
@@ -454,5 +483,5 @@ def Affichage2(model, y_test, X_test_cnn, encoder, X_train_cnn, y_train, history
         ("Matrice de confusion", fig_confusion)
     ]
 
-    return images, accuracy_test, accuracy_train, report
+    return images, accuracy_test, accuracy_train, report_test,report_train
 

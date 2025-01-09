@@ -135,7 +135,7 @@ def save_knn_results(sampling_number,sampling_strategy,Smote,PCA_Number,best_par
     insert_knn_data(db_connection,sample_data)
     db_connection.close()   
 
-def save_dp_results(Smote_States,report,model,scaler, accuracy, accuracy_train, images,Echantillon_min,Weight_Class,Adjust_Factor,Epoque,batch_size_nbr,Learning_Rate, output_folder="DP"):
+def save_dp_results(Smote_States,report_test,report_train,model,scaler, accuracy, accuracy_train, images,Echantillon_min,Weight_Class,Adjust_Factor,Epoque,batch_size_nbr,Learning_Rate, output_folder="DP"):
 
     # 1. Création du répertoire 'KNN' s'il n'existe pas
     os.makedirs(output_folder, exist_ok=True)
@@ -158,7 +158,9 @@ def save_dp_results(Smote_States,report,model,scaler, accuracy, accuracy_train, 
         f.write(f"Accuracy : {accuracy}\n")
         f.write(f"Train Accuracy : {accuracy_train}\n\n")
         f.write("\n===== Rapport set de test =====\n")
-        f.write(report)
+        f.write(report_test)
+        f.write("\n===== Rapport set de train =====\n")
+        f.write(report_train)
     
     # 5. Enregistrer un fichier texte 'parameter' avec des détails supplémentaires
     parameter_filename = os.path.join(output_folder, "parameters.txt")
